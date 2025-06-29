@@ -52,7 +52,7 @@ export function useGame() {
     if (gameState.gameStatus !== "playing") return
     if (gameState.currentGuess.length !== gameState.currentWord.length) return
     if (!isValidWord(gameState.currentGuess)) {
-      alert("Not a valid AI-related word!")
+      alert("All guesses must be AI related words! Please try again.")
       return
     }
 
