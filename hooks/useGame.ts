@@ -17,7 +17,6 @@ export function useGame() {
       currentRow: 0,
       gameStatus: "playing",
       maxAttempts: 6,
-      isSubmitting: false,
     }
   })
 
@@ -25,7 +24,7 @@ export function useGame() {
 
   const addLetter = useCallback(
     (letter: string) => {
-      if (gameState.gameStatus !== "playing") return
+      if (gameState.gameStatus !== "playing" || isSubmitting) return
 
       setGameState((prev) => {
         if (prev.currentGuess.length >= prev.currentWord.length) return prev
@@ -36,20 +35,20 @@ export function useGame() {
         }
       })
     },
-    [gameState.gameStatus],
+    [gameState.gameStatus, isSubmitting],
   )
 
   const removeLetter = useCallback(() => {
-    if (gameState.gameStatus !== "playing") return
+    if (gameState.gameStatus !== "playing" || isSubmitting) return
 
     setGameState((prev) => ({
       ...prev,
       currentGuess: prev.currentGuess.slice(0, -1),
     }))
-  }, [gameState.gameStatus])
+  }, [gameState.gameStatus, isSubmitting])
 
-  const submitGuess = useCallback(async () => {
-    if (gameState.gameStatus !== "playing") return
+  const submitGuess = useCallback(() => {
+    if (gameState.gameStatus !== "playing" || isSubmitting) return
     if (gameState.currentGuess.length !== gameState.currentWord.length) return
     if (!isValidWord(gameState.currentGuess)) {
       alert("All guesses must be AI related words! Please try again.")
@@ -58,35 +57,46 @@ export function useGame() {
 
     setIsSubmitting(true)
 
-    // Wait for animation to complete before updating game state
+    // First, calculate the guess result and update the guesses array
+    const guessResult = checkGuess(gameState.currentGuess, gameState.currentWord)
+    const newGuesses = [...gameState.guesses]
+    newGuesses[gameState.currentRow] = guessResult
+
+    // Update the game state immediately with the guess result
+    setGameState((prev) => ({
+      ...prev,
+      guesses: newGuesses,
+    }))
+
+    // Wait for animation to complete before updating game status and row
     setTimeout(
       () => {
-        setGameState((prev) => {
-          const guessResult = checkGuess(prev.currentGuess, prev.currentWord)
-          const newGuesses = [...prev.guesses]
-          newGuesses[prev.currentRow] = guessResult
+        const won = isGameWon(guessResult)
+        const lost = !won && gameState.currentRow >= gameState.maxAttempts - 1
 
-          const won = isGameWon(guessResult)
-          const lost = !won && prev.currentRow >= prev.maxAttempts - 1
+        let newStatus: GameStatus = "playing"
+        if (won) newStatus = "won"
+        else if (lost) newStatus = "lost"
 
-          let newStatus: GameStatus = "playing"
-          if (won) newStatus = "won"
-          else if (lost) newStatus = "lost"
-
-          return {
-            ...prev,
-            guesses: newGuesses,
-            currentGuess: "",
-            currentRow: prev.currentRow + 1,
-            gameStatus: newStatus,
-          }
-        })
+        setGameState((prev) => ({
+          ...prev,
+          currentGuess: "",
+          currentRow: prev.currentRow + 1,
+          gameStatus: newStatus,
+        }))
 
         setIsSubmitting(false)
       },
       gameState.currentWord.length * 150 + 300,
     ) // Animation duration + buffer
-  }, [gameState.gameStatus, gameState.currentGuess, gameState.currentWord.length])
+  }, [
+    gameState.gameStatus,
+    gameState.currentGuess,
+    gameState.currentWord,
+    gameState.currentRow,
+    gameState.maxAttempts,
+    isSubmitting,
+  ])
 
   const resetGame = useCallback(() => {
     const word = getRandomWord()

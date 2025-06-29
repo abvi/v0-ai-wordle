@@ -14,30 +14,33 @@ interface GameBoardProps {
 export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSubmitting }: GameBoardProps) {
   const [animatingRow, setAnimatingRow] = useState<number | null>(null)
   const [revealedLetters, setRevealedLetters] = useState<Set<string>>(new Set())
+  const [animationGuess, setAnimationGuess] = useState<string>("")
 
   useEffect(() => {
-    if (isSubmitting && currentRow > 0) {
-      const rowToAnimate = currentRow - 1
-      setAnimatingRow(rowToAnimate)
+    if (isSubmitting) {
+      // Store the current guess for animation
+      setAnimationGuess(currentGuess)
+      setAnimatingRow(currentRow)
       setRevealedLetters(new Set())
 
       // Animate each letter with a delay
       const animateLetters = async () => {
         for (let i = 0; i < wordLength; i++) {
           await new Promise((resolve) => setTimeout(resolve, 150))
-          setRevealedLetters((prev) => new Set([...prev, `${rowToAnimate}-${i}`]))
+          setRevealedLetters((prev) => new Set([...prev, `${currentRow}-${i}`]))
         }
 
         // Clear animation state after all letters are revealed
         setTimeout(() => {
           setAnimatingRow(null)
           setRevealedLetters(new Set())
+          setAnimationGuess("")
         }, 300)
       }
 
       animateLetters()
     }
-  }, [isSubmitting, currentRow, wordLength])
+  }, [isSubmitting, currentRow, currentGuess, wordLength])
 
   const getLetterStyle = (state: string, isRevealed: boolean, isAnimating: boolean) => {
     const baseStyle =
@@ -105,9 +108,19 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
               letter = guess[colIndex]?.char || ""
               state = guess[colIndex]?.state || "empty"
             } else if (rowIndex === currentRow) {
-              // Current row
-              letter = currentGuess[colIndex] || ""
-              state = "empty"
+              // Current row - show animation guess if animating, otherwise current guess
+              if (isSubmitting && animationGuess) {
+                letter = animationGuess[colIndex] || ""
+                // Show the final state if revealed during animation
+                if (isRevealed && guess[colIndex]) {
+                  state = guess[colIndex].state
+                } else {
+                  state = "empty"
+                }
+              } else {
+                letter = currentGuess[colIndex] || ""
+                state = "empty"
+              }
             }
 
             return (
