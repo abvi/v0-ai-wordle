@@ -19,7 +19,7 @@ export async function generateAIWords(): Promise<Record<number, string[]>> {
       messages: [
         {
           role: "system",
-          content: `You are a word generator for an AI-themed word guessing game. Generate a comprehensive list of AI, technology, and computer science related words organized by length (2-8 letters). 
+          content: `You are a word generator for an AI-themed word guessing game. Generate a comprehensive list of AI, technology, and computer science related words organized by length (3-6 letters). 
 
 Categories to include:
 - AI/ML terms (AI, ML, GPU, CPU, LLM, NLP, CNN, RNN, etc.)
@@ -30,16 +30,13 @@ Categories to include:
 
 Return ONLY a valid JSON object with this exact structure:
 {
-  "2": ["AI", "ML", "OS", "UI", "UX"],
   "3": ["API", "GPU", "CPU", "NLP", "CNN"],
   "4": ["CODE", "DATA", "HASH", "JSON"],
   "5": ["MODEL", "AGENT", "LOGIC", "TRAIN"],
   "6": ["NEURAL", "PYTHON", "GITHUB", "DOCKER"],
-  "7": ["MACHINE", "NETWORK", "PATTERN", "COMPUTE"],
-  "8": ["LEARNING", "TRAINING", "COMPUTER", "ALGORITHM"]
 }
 
-Provide at least 20 words per length category. All words must be uppercase and contain only letters A-Z.`,
+Provide at least 10 words per length category. All words must be uppercase and contain only letters A-Z.`,
         },
       ],
       temperature: 0.7,
