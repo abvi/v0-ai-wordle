@@ -50,10 +50,6 @@ export function useGame() {
   const submitGuess = useCallback(() => {
     if (gameState.gameStatus !== "playing" || isSubmitting) return
     if (gameState.currentGuess.length !== gameState.currentWord.length) return
-    if (!isValidWord(gameState.currentGuess)) {
-      alert("All guesses must be AI related words! Please try again.")
-      return
-    }
 
     setIsSubmitting(true)
 
