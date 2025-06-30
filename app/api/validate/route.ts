@@ -1,17 +1,16 @@
-import { validateWord } from "@/lib/openai-server"
 import { type NextRequest, NextResponse } from "next/server"
+import { validateWord } from "@/lib/openai-server"
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const word = searchParams.get("word")
+    const { word } = await request.json()
 
-    if (!word) {
-      return NextResponse.json({ error: "Word parameter is required" }, { status: 400 })
+    if (!word || typeof word !== "string") {
+      return NextResponse.json({ error: "Invalid word provided" }, { status: 400 })
     }
 
-    const valid = await validateWord(word.toUpperCase())
-    return NextResponse.json({ valid })
+    const isValid = await validateWord(word.toUpperCase())
+    return NextResponse.json({ isValid })
   } catch (error) {
     console.error("Error in /api/validate:", error)
     return NextResponse.json({ error: "Failed to validate word" }, { status: 500 })

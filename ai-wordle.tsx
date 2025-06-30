@@ -6,7 +6,7 @@ import { GameBoard } from "./components/GameBoard"
 import { Keyboard } from "./components/Keyboard"
 import { Button } from "@/components/ui/button"
 
-export default function AIWordle() {
+export default function AIWordGuesser() {
   const {
     gameState,
     addLetter,
@@ -55,7 +55,7 @@ export default function AIWordle() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-3xl font-bold text-center text-gray-900">AI Wordle</h1>
+          <h1 className="text-3xl font-bold text-center text-gray-900">AI Word Guesser</h1>
           <p className="text-center text-gray-600 mt-2">
             Guess the AI-related word! ({gameState.currentWord.length} letters)
           </p>
