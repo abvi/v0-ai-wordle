@@ -1,38 +1,34 @@
-import type { Letter, LetterState } from "../types/game"
+import type { Letter } from "../types/game"
 
 export function checkGuess(guess: string, targetWord: string): Letter[] {
   const result: Letter[] = []
-  const target = targetWord.toUpperCase()
-  const guessUpper = guess.toUpperCase()
-
-  // Count letter frequencies in target word
-  const targetLetterCount: Record<string, number> = {}
-  for (const char of target) {
-    targetLetterCount[char] = (targetLetterCount[char] || 0) + 1
-  }
+  const targetLetters = targetWord.split("")
+  const guessLetters = guess.split("")
 
   // First pass: mark correct positions
-  const tempResult: Letter[] = guessUpper.split("").map((char, index) => ({
-    char,
-    state: "absent" as LetterState,
-  }))
+  const remainingTarget: string[] = []
+  const remainingGuess: { char: string; index: number }[] = []
 
-  for (let i = 0; i < guessUpper.length; i++) {
-    if (guessUpper[i] === target[i]) {
-      tempResult[i].state = "correct"
-      targetLetterCount[guessUpper[i]]--
+  for (let i = 0; i < guessLetters.length; i++) {
+    if (guessLetters[i] === targetLetters[i]) {
+      result[i] = { char: guessLetters[i], state: "correct" }
+    } else {
+      remainingTarget.push(targetLetters[i])
+      remainingGuess.push({ char: guessLetters[i], index: i })
+      result[i] = { char: guessLetters[i], state: "absent" }
     }
   }
 
   // Second pass: mark present letters
-  for (let i = 0; i < guessUpper.length; i++) {
-    if (tempResult[i].state === "absent" && targetLetterCount[guessUpper[i]] > 0) {
-      tempResult[i].state = "present"
-      targetLetterCount[guessUpper[i]]--
+  for (const { char, index } of remainingGuess) {
+    const targetIndex = remainingTarget.indexOf(char)
+    if (targetIndex !== -1) {
+      result[index].state = "present"
+      remainingTarget.splice(targetIndex, 1)
     }
   }
 
-  return tempResult
+  return result
 }
 
 export function isGameWon(guess: Letter[]): boolean {

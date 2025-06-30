@@ -1,114 +1,147 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import type { GameState, GameStatus } from "../types/game"
-import { getRandomWord, isValidWord } from "../data/words"
-import { checkGuess, isGameWon } from "../utils/gameUtils"
+import { useState, useCallback, useEffect } from "react"
+import type { GameState, GameStatus } from "@/types/game"
+import { checkGuess, isGameWon } from "@/utils/gameUtils"
 
 export function useGame() {
-  const [gameState, setGameState] = useState<GameState>(() => {
-    const word = getRandomWord()
-    return {
-      currentWord: word,
-      guesses: Array(6)
-        .fill(null)
-        .map(() => Array(word.length).fill({ char: "", state: "empty" })),
-      currentGuess: "",
-      currentRow: 0,
-      gameStatus: "playing",
-      maxAttempts: 6,
-    }
+  /* ---------------- word list ---------------- */
+  const [wordList, setWordList] = useState<Record<number, string[]>>({})
+  const [isLoadingWords, setIsLoadingWords] = useState(true)
+
+  /* ---------------- gameplay state ---------------- */
+  const [gameState, setGameState] = useState<GameState>({
+    currentWord: "",
+    guesses: [],
+    currentGuess: "",
+    currentRow: 0,
+    gameStatus: "playing",
+    maxAttempts: 6,
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isValidating, setIsValidating] = useState(false)
 
+  /* ---------------- helpers ---------------- */
+  const getRandomWord = (store: Record<number, string[]>): string => {
+    const lengths = Object.keys(store).map(Number)
+    const len = lengths[Math.floor(Math.random() * lengths.length)]
+    const bucket = store[len]
+    return bucket[Math.floor(Math.random() * bucket.length)]
+  }
+
+  /* ---------------- boot sequence ---------------- */
+  useEffect(() => {
+    const boot = async () => {
+      setIsLoadingWords(true)
+      try {
+        const res = await fetch("/api/words")
+        const json = (await res.json()) as { words: Record<number, string[]> }
+        setWordList(json.words)
+
+        const first = getRandomWord(json.words)
+        setGameState({
+          currentWord: first,
+          guesses: Array(6)
+            .fill(null)
+            .map(() => Array(first.length).fill({ char: "", state: "empty" })),
+          currentGuess: "",
+          currentRow: 0,
+          gameStatus: "playing",
+          maxAttempts: 6,
+        })
+      } catch (err) {
+        console.error("Failed to load word list, cannot continue.", err)
+      } finally {
+        setIsLoadingWords(false)
+      }
+    }
+
+    boot()
+  }, [])
+
+  /* ---------------- input handlers ---------------- */
   const addLetter = useCallback(
-    (letter: string) => {
-      if (gameState.gameStatus !== "playing" || isSubmitting) return
-
-      setGameState((prev) => {
-        if (prev.currentGuess.length >= prev.currentWord.length) return prev
-
-        return {
-          ...prev,
-          currentGuess: prev.currentGuess + letter.toUpperCase(),
-        }
-      })
+    (l: string) => {
+      if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
+      if (gameState.currentGuess.length >= gameState.currentWord.length) return
+      setGameState((s) => ({ ...s, currentGuess: s.currentGuess + l.toUpperCase() }))
     },
-    [gameState.gameStatus, isSubmitting],
+    [gameState, isSubmitting, isValidating],
   )
 
   const removeLetter = useCallback(() => {
-    if (gameState.gameStatus !== "playing" || isSubmitting) return
+    if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
+    setGameState((s) => ({ ...s, currentGuess: s.currentGuess.slice(0, -1) }))
+  }, [gameState, isSubmitting, isValidating])
 
-    setGameState((prev) => ({
-      ...prev,
-      currentGuess: prev.currentGuess.slice(0, -1),
-    }))
-  }, [gameState.gameStatus, isSubmitting])
+  const submitGuess = useCallback(async () => {
+    if (
+      gameState.gameStatus !== "playing" ||
+      isSubmitting ||
+      isValidating ||
+      gameState.currentGuess.length !== gameState.currentWord.length
+    )
+      return
 
-  const submitGuess = useCallback(() => {
-    if (gameState.gameStatus !== "playing" || isSubmitting) return
-    if (gameState.currentGuess.length !== gameState.currentWord.length) return
+    /* ---- 1) validate with API route ---- */
+    setIsValidating(true)
+    try {
+      const res = await fetch(`/api/validate?word=${encodeURIComponent(gameState.currentGuess)}`)
+      const json = (await res.json()) as { valid: boolean }
+      if (!json.valid) {
+        alert("Not an accepted AI / technology term. Try another word!")
+        setIsValidating(false)
+        return
+      }
+    } catch (err) {
+      console.error("Validation failed, allowing word for now.", err)
+    }
+    setIsValidating(false)
 
+    /* ---- 2) reveal animation ---- */
     setIsSubmitting(true)
-
-    // First, calculate the guess result and update the guesses array
-    const guessResult = checkGuess(gameState.currentGuess, gameState.currentWord)
+    const result = checkGuess(gameState.currentGuess, gameState.currentWord)
     const newGuesses = [...gameState.guesses]
-    newGuesses[gameState.currentRow] = guessResult
+    newGuesses[gameState.currentRow] = result
+    setGameState((s) => ({ ...s, guesses: newGuesses }))
 
-    // Update the game state immediately with the guess result
-    setGameState((prev) => ({
-      ...prev,
-      guesses: newGuesses,
-    }))
-
-    // Wait for animation to complete before updating game status and row
     setTimeout(
       () => {
-        const won = isGameWon(guessResult)
+        const won = isGameWon(result)
         const lost = !won && gameState.currentRow >= gameState.maxAttempts - 1
+        const status: GameStatus = won ? "won" : lost ? "lost" : "playing"
 
-        let newStatus: GameStatus = "playing"
-        if (won) newStatus = "won"
-        else if (lost) newStatus = "lost"
-
-        setGameState((prev) => ({
-          ...prev,
+        setGameState((s) => ({
+          ...s,
           currentGuess: "",
-          currentRow: prev.currentRow + 1,
-          gameStatus: newStatus,
+          currentRow: s.currentRow + 1,
+          gameStatus: status,
         }))
-
         setIsSubmitting(false)
       },
       gameState.currentWord.length * 150 + 300,
-    ) // Animation duration + buffer
-  }, [
-    gameState.gameStatus,
-    gameState.currentGuess,
-    gameState.currentWord,
-    gameState.currentRow,
-    gameState.maxAttempts,
-    isSubmitting,
-  ])
+    )
+  }, [gameState, isSubmitting, isValidating])
 
   const resetGame = useCallback(() => {
-    const word = getRandomWord()
+    if (!Object.keys(wordList).length) return
+    const next = getRandomWord(wordList)
     setGameState({
-      currentWord: word,
+      currentWord: next,
       guesses: Array(6)
         .fill(null)
-        .map(() => Array(word.length).fill({ char: "", state: "empty" })),
+        .map(() => Array(next.length).fill({ char: "", state: "empty" })),
       currentGuess: "",
       currentRow: 0,
       gameStatus: "playing",
       maxAttempts: 6,
     })
     setIsSubmitting(false)
-  }, [])
+    setIsValidating(false)
+  }, [wordList])
 
+  /* ---------------- exports ---------------- */
   return {
     gameState,
     addLetter,
@@ -116,5 +149,7 @@ export function useGame() {
     submitGuess,
     resetGame,
     isSubmitting,
+    isValidating,
+    isLoadingWords,
   }
 }

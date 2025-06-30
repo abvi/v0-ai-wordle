@@ -7,12 +7,13 @@ import { Keyboard } from "./components/Keyboard"
 import { Button } from "@/components/ui/button"
 
 export default function AIWordle() {
-  const { gameState, addLetter, removeLetter, submitGuess, resetGame, isSubmitting } = useGame()
+  const { gameState, addLetter, removeLetter, submitGuess, resetGame, isSubmitting, isValidating, isLoadingWords } =
+    useGame()
 
   // Handle physical keyboard input
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (gameState.gameStatus !== "playing" || isSubmitting) return
+      if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
 
       const key = event.key.toUpperCase()
 
@@ -27,7 +28,18 @@ export default function AIWordle() {
 
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [gameState.gameStatus, addLetter, removeLetter, submitGuess, isSubmitting])
+  }, [gameState.gameStatus, addLetter, removeLetter, submitGuess, isSubmitting, isValidating])
+
+  if (isLoadingWords) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading AI words from OpenAI...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -38,6 +50,7 @@ export default function AIWordle() {
           <p className="text-center text-gray-600 mt-2">
             Guess the AI-related word! ({gameState.currentWord.length} letters)
           </p>
+          {isValidating && <p className="text-center text-blue-600 mt-1 text-sm">Validating word with AI...</p>}
         </div>
       </header>
 
@@ -77,9 +90,9 @@ export default function AIWordle() {
 
         {/* Keyboard */}
         <Keyboard
-          onLetterClick={isSubmitting ? () => {} : addLetter}
-          onEnterClick={isSubmitting ? () => {} : submitGuess}
-          onBackspaceClick={isSubmitting ? () => {} : removeLetter}
+          onLetterClick={isSubmitting || isValidating ? () => {} : addLetter}
+          onEnterClick={isSubmitting || isValidating ? () => {} : submitGuess}
+          onBackspaceClick={isSubmitting || isValidating ? () => {} : removeLetter}
         />
 
         {/* Game Info */}
@@ -88,6 +101,9 @@ export default function AIWordle() {
             Attempts: {gameState.currentRow} / {gameState.maxAttempts}
           </p>
           <p className="text-sm mt-2">🟩 Correct position • 🟨 Wrong position • ⬜ Not in word</p>
+          <p className="text-xs mt-1 text-gray-500">
+            Words are validated using OpenAI - only AI/tech terms are accepted
+          </p>
         </div>
       </main>
     </div>
