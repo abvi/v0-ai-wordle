@@ -93,11 +93,12 @@ export async function validateWord(word: string): Promise<boolean> {
       messages: [
         {
           role: "system",
-          content: "You are a word validator. Respond with only 'true' or 'false'.",
+          content:
+            "You are a word validator. Respond with only 'true' or 'false'. You should return 'true' for any valid English word that would be found in a standard dictionary.",
         },
         {
           role: "user",
-          content: `Is "${word}" a valid English word that could reasonably be related to AI, technology, programming, or computing? Consider: AI/ML terms, programming languages, tech companies, hardware/software terms, general computing concepts, etc. Respond with only 'true' or 'false'.`,
+          content: `Is "${word}" a valid English word? This includes common nouns, verbs, adjectives, proper nouns, abbreviations, and technical terms that would be found in a standard English dictionary. Respond with only 'true' or 'false'.`,
         },
       ],
       temperature: 0,
@@ -108,7 +109,7 @@ export async function validateWord(word: string): Promise<boolean> {
     return response === "true"
   } catch (error) {
     console.error("Error validating word with OpenAI:", error)
-    // Fallback to basic validation
+    // Fallback to basic validation - accept any alphabetic word
     return word.length >= 2 && word.length <= 8 && /^[A-Z]+$/.test(word)
   }
 }

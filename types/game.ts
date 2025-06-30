@@ -1,17 +1,12 @@
-export type LetterState = "correct" | "present" | "absent" | "empty"
-
-export type GameStatus = "playing" | "won" | "lost"
-
-export interface Letter {
-  char: string
-  state: LetterState
-}
+export type LetterState = "empty" | "filled" | "correct" | "present" | "absent"
 
 export interface GameState {
   currentWord: string
-  guesses: Letter[][]
+  guesses: { char: string; state: LetterState }[][]
   currentGuess: string
   currentRow: number
   gameStatus: GameStatus
   maxAttempts: number
 }
+
+export type GameStatus = "playing" | "won" | "lost"
