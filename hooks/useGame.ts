@@ -90,7 +90,7 @@ export function useGame() {
       const res = await fetch(`/api/validate?word=${encodeURIComponent(gameState.currentGuess)}`)
       const json = (await res.json()) as { valid: boolean }
       if (!json.valid) {
-        alert("Not an accepted AI / technology term. Try another word!")
+        alert("Not a valid English word. Please try another word!")
         setIsValidating(false)
         return
       }

@@ -103,7 +103,7 @@ export async function validateWordServer(word: string): Promise<boolean> {
         role: "system",
         content:
           "You are a validator. Reply ONLY 'true' or 'false'. " +
-          "Return 'true' if the word is an AI/technology term, programming language, tech company, or computer-science concept.",
+          "Return 'true' if the word is a valid English word.",
       },
       { role: "user", content: word.toUpperCase() },
     ])
