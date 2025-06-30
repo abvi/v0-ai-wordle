@@ -1,14 +1,12 @@
-import { NextResponse } from "next/server"
 import { generateAIWords } from "@/lib/openai-server"
+import { NextResponse } from "next/server"
 
-/**
- * GET /api/words
- * Returns a JSON payload `{ words: { "2": [...], ... } }`.
- * Cached for 24 h at the edge (s-maxage) to minimise API calls.
- */
 export async function GET() {
-  const data = await generateAIWords()
-  return NextResponse.json(data, {
-    headers: { "Cache-Control": "s-maxage=86400, stale-while-revalidate" },
-  })
+  try {
+    const result = await generateAIWords()
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("Error in /api/words:", error)
+    return NextResponse.json({ error: "Failed to generate words" }, { status: 500 })
+  }
 }

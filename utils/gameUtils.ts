@@ -1,30 +1,35 @@
-import type { Letter } from "../types/game"
+import type { Letter } from "@/types/game"
 
-export function checkGuess(guess: string, targetWord: string): Letter[] {
+export function checkGuess(guess: string, target: string): Letter[] {
   const result: Letter[] = []
-  const targetLetters = targetWord.split("")
+  const targetLetters = target.split("")
   const guessLetters = guess.split("")
 
   // First pass: mark correct positions
-  const remainingTarget: string[] = []
-  const remainingGuess: { char: string; index: number }[] = []
+  const targetCounts: Record<string, number> = {}
+  for (let i = 0; i < targetLetters.length; i++) {
+    const letter = targetLetters[i]
+    targetCounts[letter] = (targetCounts[letter] || 0) + 1
+  }
 
+  // Initialize result array
+  for (let i = 0; i < guessLetters.length; i++) {
+    result[i] = { char: guessLetters[i], state: "absent" }
+  }
+
+  // First pass: mark correct letters
   for (let i = 0; i < guessLetters.length; i++) {
     if (guessLetters[i] === targetLetters[i]) {
-      result[i] = { char: guessLetters[i], state: "correct" }
-    } else {
-      remainingTarget.push(targetLetters[i])
-      remainingGuess.push({ char: guessLetters[i], index: i })
-      result[i] = { char: guessLetters[i], state: "absent" }
+      result[i].state = "correct"
+      targetCounts[guessLetters[i]]--
     }
   }
 
   // Second pass: mark present letters
-  for (const { char, index } of remainingGuess) {
-    const targetIndex = remainingTarget.indexOf(char)
-    if (targetIndex !== -1) {
-      result[index].state = "present"
-      remainingTarget.splice(targetIndex, 1)
+  for (let i = 0; i < guessLetters.length; i++) {
+    if (result[i].state === "absent" && targetCounts[guessLetters[i]] > 0) {
+      result[i].state = "present"
+      targetCounts[guessLetters[i]]--
     }
   }
 

@@ -1,14 +1,19 @@
-import { NextResponse } from "next/server"
-import { validateWordServer } from "@/lib/openai-server"
+import { validateWord } from "@/lib/openai-server"
+import { type NextRequest, NextResponse } from "next/server"
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const word = searchParams.get("word")?.toUpperCase() || ""
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const word = searchParams.get("word")
 
-  if (!word) {
-    return NextResponse.json({ valid: false, error: "Word query param missing." }, { status: 400 })
+    if (!word) {
+      return NextResponse.json({ error: "Word parameter required" }, { status: 400 })
+    }
+
+    const valid = await validateWord(word.toUpperCase())
+    return NextResponse.json({ valid })
+  } catch (error) {
+    console.error("Error in /api/validate:", error)
+    return NextResponse.json({ error: "Failed to validate word" }, { status: 500 })
   }
-
-  const valid = await validateWordServer(word)
-  return NextResponse.json({ valid })
 }

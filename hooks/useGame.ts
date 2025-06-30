@@ -1,15 +1,14 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import type { GameState, GameStatus } from "@/types/game"
+import type { GameState, GameStatus, LetterState } from "@/types/game"
 import { checkGuess, isGameWon } from "@/utils/gameUtils"
 
 export function useGame() {
-  /* ---------------- word list ---------------- */
   const [wordList, setWordList] = useState<Record<number, string[]>>({})
   const [isLoadingWords, setIsLoadingWords] = useState(true)
+  const [keyboardState, setKeyboardState] = useState<Record<string, LetterState>>({})
 
-  /* ---------------- gameplay state ---------------- */
   const [gameState, setGameState] = useState<GameState>({
     currentWord: "",
     guesses: [],
@@ -22,7 +21,6 @@ export function useGame() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
 
-  /* ---------------- helpers ---------------- */
   const getRandomWord = (store: Record<number, string[]>): string => {
     const lengths = Object.keys(store).map(Number)
     const len = lengths[Math.floor(Math.random() * lengths.length)]
@@ -30,7 +28,28 @@ export function useGame() {
     return bucket[Math.floor(Math.random() * bucket.length)]
   }
 
-  /* ---------------- boot sequence ---------------- */
+  const updateKeyboardState = useCallback((guess: string, result: { char: string; state: LetterState }[]) => {
+    setKeyboardState((prev) => {
+      const newState = { ...prev }
+
+      result.forEach(({ char, state }) => {
+        const currentState = newState[char]
+
+        // Priority: correct > present > absent
+        // Don't downgrade a key's state
+        if (state === "correct") {
+          newState[char] = "correct"
+        } else if (state === "present" && currentState !== "correct") {
+          newState[char] = "present"
+        } else if (state === "absent" && !currentState) {
+          newState[char] = "absent"
+        }
+      })
+
+      return newState
+    })
+  }, [])
+
   useEffect(() => {
     const boot = async () => {
       setIsLoadingWords(true)
@@ -60,7 +79,6 @@ export function useGame() {
     boot()
   }, [])
 
-  /* ---------------- input handlers ---------------- */
   const addLetter = useCallback(
     (l: string) => {
       if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
@@ -84,7 +102,6 @@ export function useGame() {
     )
       return
 
-    /* ---- 1) validate with API route ---- */
     setIsValidating(true)
     try {
       const res = await fetch(`/api/validate?word=${encodeURIComponent(gameState.currentGuess)}`)
@@ -99,12 +116,14 @@ export function useGame() {
     }
     setIsValidating(false)
 
-    /* ---- 2) reveal animation ---- */
     setIsSubmitting(true)
     const result = checkGuess(gameState.currentGuess, gameState.currentWord)
     const newGuesses = [...gameState.guesses]
     newGuesses[gameState.currentRow] = result
     setGameState((s) => ({ ...s, guesses: newGuesses }))
+
+    // Update keyboard state with the new guess results
+    updateKeyboardState(gameState.currentGuess, result)
 
     setTimeout(
       () => {
@@ -122,7 +141,7 @@ export function useGame() {
       },
       gameState.currentWord.length * 150 + 300,
     )
-  }, [gameState, isSubmitting, isValidating])
+  }, [gameState, isSubmitting, isValidating, updateKeyboardState])
 
   const resetGame = useCallback(() => {
     if (!Object.keys(wordList).length) return
@@ -139,9 +158,9 @@ export function useGame() {
     })
     setIsSubmitting(false)
     setIsValidating(false)
+    setKeyboardState({}) // Reset keyboard colors
   }, [wordList])
 
-  /* ---------------- exports ---------------- */
   return {
     gameState,
     addLetter,
@@ -151,5 +170,6 @@ export function useGame() {
     isSubmitting,
     isValidating,
     isLoadingWords,
+    keyboardState,
   }
 }
