@@ -1,70 +1,89 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import type React from "react"
 import type { LetterState } from "@/types/game"
 
 interface KeyboardProps {
-  onKeyPress: (key: string) => void
-  onEnter: () => void
-  onBackspace: () => void
+  onLetterClick: (letter: string) => void
+  onEnterClick: () => void
+  onBackspaceClick: () => void
   keyboardState: Record<string, LetterState>
-  disabled?: boolean
 }
 
-const KEYBOARD_ROWS = [
-  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-  ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BACKSPACE"],
-]
+export function Keyboard({ onLetterClick, onEnterClick, onBackspaceClick, keyboardState }: KeyboardProps) {
+  const topRow = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]
+  const middleRow = ["A", "S", "D", "F", "G", "H", "J", "K", "L"]
+  const bottomRow = ["Z", "X", "C", "V", "B", "N", "M"]
 
-export function Keyboard({ onKeyPress, onEnter, onBackspace, keyboardState, disabled = false }: KeyboardProps) {
-  const getKeyStyle = (key: string) => {
-    const state = keyboardState[key]
-    const baseClasses = "h-12 font-semibold text-sm transition-all duration-200 active:scale-95"
-
+  const getKeyColor = (letter: string): string => {
+    const state = keyboardState[letter]
     switch (state) {
       case "correct":
-        return `${baseClasses} bg-green-500 hover:bg-green-600 text-white border-green-500`
+        return "bg-green-500 hover:bg-green-600 text-white"
       case "present":
-        return `${baseClasses} bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500`
+        return "bg-yellow-500 hover:bg-yellow-600 text-white"
       case "absent":
-        return `${baseClasses} bg-gray-500 hover:bg-gray-600 text-white border-gray-500`
+        return "bg-gray-500 hover:bg-gray-600 text-white"
       default:
-        return `${baseClasses} bg-gray-200 hover:bg-gray-300 text-gray-800 border-gray-300`
+        return "bg-gray-200 hover:bg-gray-300 text-black"
     }
   }
 
-  const handleKeyClick = (key: string) => {
-    if (disabled) return
-
-    if (key === "ENTER") {
-      onEnter()
-    } else if (key === "BACKSPACE") {
-      onBackspace()
-    } else {
-      onKeyPress(key)
-    }
-  }
+  const KeyButton = ({
+    children,
+    onClick,
+    className = "",
+  }: {
+    children: React.ReactNode
+    onClick: () => void
+    className?: string
+  }) => (
+    <button
+      onClick={onClick}
+      className={`
+        px-3 py-4 rounded font-semibold text-sm
+        transition-colors duration-150 active:scale-95
+        ${className}
+      `}
+    >
+      {children}
+    </button>
+  )
 
   return (
-    <div className="flex flex-col gap-2 max-w-lg mx-auto">
-      {KEYBOARD_ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex gap-1 justify-center">
-          {row.map((key) => (
-            <Button
-              key={key}
-              onClick={() => handleKeyClick(key)}
-              disabled={disabled}
-              className={`${getKeyStyle(key)} ${
-                key === "ENTER" || key === "BACKSPACE" ? "px-3 min-w-[60px]" : "w-10 px-0"
-              }`}
-              variant="outline"
-            >
-              {key === "BACKSPACE" ? "⌫" : key}
-            </Button>
-          ))}
-        </div>
-      ))}
+    <div className="w-full max-w-lg mx-auto p-4">
+      {/* Top Row */}
+      <div className="flex gap-1 mb-2 justify-center">
+        {topRow.map((letter) => (
+          <KeyButton key={letter} onClick={() => onLetterClick(letter)} className={getKeyColor(letter)}>
+            {letter}
+          </KeyButton>
+        ))}
+      </div>
+
+      {/* Middle Row */}
+      <div className="flex gap-1 mb-2 justify-center">
+        {middleRow.map((letter) => (
+          <KeyButton key={letter} onClick={() => onLetterClick(letter)} className={getKeyColor(letter)}>
+            {letter}
+          </KeyButton>
+        ))}
+      </div>
+
+      {/* Bottom Row */}
+      <div className="flex gap-1 justify-center">
+        <KeyButton onClick={onEnterClick} className="px-6 bg-gray-200 hover:bg-gray-300 text-black">
+          ENTER
+        </KeyButton>
+        {bottomRow.map((letter) => (
+          <KeyButton key={letter} onClick={() => onLetterClick(letter)} className={getKeyColor(letter)}>
+            {letter}
+          </KeyButton>
+        ))}
+        <KeyButton onClick={onBackspaceClick} className="px-6 bg-gray-200 hover:bg-gray-300 text-black">
+          ⌫
+        </KeyButton>
+      </div>
     </div>
   )
 }

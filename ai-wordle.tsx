@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect } from "react"
-import { useGame } from "@/hooks/useGame"
-import { GameBoard } from "@/components/GameBoard"
-import { Keyboard } from "@/components/Keyboard"
+import { useGame } from "./hooks/useGame"
+import { GameBoard } from "./components/GameBoard"
+import { Keyboard } from "./components/Keyboard"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function AIWordle() {
   const {
@@ -22,77 +21,99 @@ export default function AIWordle() {
 
   // Handle physical keyboard input
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isSubmitting || isValidating) return
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
 
       const key = event.key.toUpperCase()
 
       if (key === "ENTER") {
-        event.preventDefault()
         submitGuess()
       } else if (key === "BACKSPACE") {
-        event.preventDefault()
         removeLetter()
       } else if (/^[A-Z]$/.test(key)) {
-        event.preventDefault()
         addLetter(key)
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [addLetter, removeLetter, submitGuess, isSubmitting, isValidating])
+    window.addEventListener("keydown", handleKeyPress)
+    return () => window.removeEventListener("keydown", handleKeyPress)
+  }, [gameState.gameStatus, addLetter, removeLetter, submitGuess, isSubmitting, isValidating])
 
   if (isLoadingWords) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading AI words...</p>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading AI words...</p>
+        </div>
       </div>
     )
   }
 
-  const getStatusMessage = () => {
-    if (isValidating) return "Validating word..."
-    if (isSubmitting) return "Checking guess..."
-    if (gameState.gameStatus === "won") return `Congratulations! The word was "${gameState.currentWord}"`
-    if (gameState.gameStatus === "lost") return `Game over! The word was "${gameState.currentWord}"`
-    return `Guess the ${gameState.currentWord.length}-letter AI word!`
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-gray-800">AI Wordle</CardTitle>
-            <p className="text-gray-600 mt-2">{getStatusMessage()}</p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <GameBoard gameState={gameState} isSubmitting={isSubmitting} />
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <h1 className="text-3xl font-bold text-center text-gray-900">AI Wordle</h1>
+          <p className="text-center text-gray-600 mt-2">
+            Guess the AI-related word! ({gameState.currentWord.length} letters)
+          </p>
+          {isValidating && <p className="text-center text-blue-600 mt-1 text-sm">Validating word...</p>}
+        </div>
+      </header>
 
-            <Keyboard
-              onKeyPress={addLetter}
-              onEnter={submitGuess}
-              onBackspace={removeLetter}
-              keyboardState={keyboardState}
-              disabled={isSubmitting || isValidating || gameState.gameStatus !== "playing"}
-            />
+      {/* Game Board */}
+      <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
+        <GameBoard
+          guesses={gameState.guesses}
+          currentGuess={gameState.currentGuess}
+          currentRow={gameState.currentRow}
+          wordLength={gameState.currentWord.length}
+          isSubmitting={isSubmitting}
+        />
 
-            {(gameState.gameStatus === "won" || gameState.gameStatus === "lost") && (
-              <div className="text-center">
-                <Button onClick={resetGame} className="bg-blue-600 hover:bg-blue-700 text-white">
-                  Play Again
-                </Button>
+        {/* Game Status */}
+        {gameState.gameStatus !== "playing" && (
+          <div className="text-center p-4">
+            {gameState.gameStatus === "won" ? (
+              <div className="text-green-600">
+                <h2 className="text-2xl font-bold mb-2">🎉 Congratulations!</h2>
+                <p>
+                  You guessed the word: <strong>{gameState.currentWord}</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="text-red-600">
+                <h2 className="text-2xl font-bold mb-2">😔 Game Over</h2>
+                <p>
+                  The word was: <strong>{gameState.currentWord}</strong>
+                </p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+            <Button onClick={resetGame} className="mt-4">
+              Play Again
+            </Button>
+          </div>
+        )}
+
+        {/* Keyboard */}
+        <Keyboard
+          onLetterClick={addLetter}
+          onEnterClick={submitGuess}
+          onBackspaceClick={removeLetter}
+          keyboardState={keyboardState}
+        />
+
+        {/* Game Info */}
+        <div className="text-center p-4 text-gray-600">
+          <p>
+            Attempts: {gameState.currentRow} / {gameState.maxAttempts}
+          </p>
+          <p className="text-sm mt-2">🟩 Correct position • 🟨 Wrong position • ⬜ Not in word</p>
+          <p className="text-xs mt-1 text-gray-500">Any valid English word accepted for guesses</p>
+        </div>
+      </main>
     </div>
   )
 }

@@ -1,115 +1,96 @@
 import "server-only"
 import OpenAI from "openai"
 
-// Fallback word list in case OpenAI is unavailable
-const FALLBACK_WORDS: Record<number, string[]> = {
-  2: ["AI", "ML", "OS", "UI", "UX", "AR", "VR", "3D"],
-  3: ["API", "GPU", "CPU", "NLP", "CNN", "RNN", "SQL", "XML", "CSS", "DOM"],
-  4: ["CODE", "DATA", "BERT", "CLIP", "CUDA", "JSON", "HTML", "HTTP", "AJAX"],
-  5: ["MODEL", "AGENT", "LOGIC", "TRAIN", "PIXEL", "CLOUD", "ROBOT", "SMART"],
-  6: ["NEURAL", "PROMPT", "OPENAI", "CLAUDE", "PYTHON", "TENSOR", "MATRIX"],
-  7: ["MACHINE", "NETWORK", "PATTERN", "COMPUTE", "DIGITAL", "QUANTUM"],
-  8: ["LEARNING", "TRAINING", "COMPUTER", "ALGORITHM", "ROBOTICS", "INTERNET"],
-}
-
-let openaiClient: OpenAI | null = null
-
-try {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (apiKey) {
-    openaiClient = new OpenAI({ apiKey })
-  }
-} catch (error) {
-  console.warn("Failed to initialize OpenAI client:", error)
-}
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null
 
 export async function generateAIWords(): Promise<{ words: Record<number, string[]> }> {
-  if (!openaiClient) {
-    console.log("OpenAI not available, using fallback words")
-    return { words: FALLBACK_WORDS }
+  if (!openai) {
+    console.log("No OpenAI API key found, using fallback words")
+    return {
+      words: {
+        2: ["AI", "ML", "OS", "UI", "UX", "AR", "VR", "3D"],
+        3: ["API", "GPU", "CPU", "NLP", "CNN", "RNN", "SQL", "XML"],
+        4: ["CODE", "DATA", "BERT", "CLIP", "CUDA", "JSON", "HTML", "HTTP"],
+        5: ["MODEL", "AGENT", "LOGIC", "TRAIN", "PIXEL", "CLOUD", "ROBOT", "SMART"],
+        6: ["NEURAL", "PROMPT", "OPENAI", "CLAUDE", "PYTHON", "TENSOR", "VECTOR", "MATRIX"],
+        7: ["MACHINE", "NETWORK", "PATTERN", "COMPUTE", "DIGITAL", "QUANTUM", "ANDROID", "CHATBOT"],
+        8: ["LEARNING", "TRAINING", "COMPUTER", "ALGORITHM", "INTERNET", "SOFTWARE", "HARDWARE", "DATABASE"],
+      },
+    }
   }
 
   try {
-    const completion = await openaiClient.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant that generates lists of AI and technology-related words.",
+          content: `Generate AI and technology-related words for a word guessing game. 
+          Return a JSON object with word lengths as keys (2-8) and arrays of uppercase words as values.
+          Include 10+ words per length. Focus on: AI/ML terms, programming languages, tech companies, 
+          computer science concepts, and technology acronyms.`,
         },
         {
           role: "user",
-          content: `Generate a comprehensive list of AI, machine learning, and technology-related words organized by length (2-8 letters). 
-          Include terms like: AI concepts, programming languages, tech companies, algorithms, hardware terms, software terms, etc.
-          
-          Return ONLY a JSON object in this exact format:
-          {
-            "2": ["AI", "ML", "OS", "UI"],
-            "3": ["API", "GPU", "CPU", "NLP"],
-            "4": ["CODE", "DATA", "BERT"],
-            "5": ["MODEL", "AGENT", "LOGIC"],
-            "6": ["NEURAL", "PROMPT", "OPENAI"],
-            "7": ["MACHINE", "NETWORK", "PATTERN"],
-            "8": ["LEARNING", "TRAINING", "COMPUTER"]
-          }
-          
-          Provide at least 15-20 words per length category. All words should be uppercase and commonly known in tech/AI contexts.`,
+          content: "Generate the word list",
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
     })
 
-    const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error("No content received from OpenAI")
-    }
+    const content = response.choices[0]?.message?.content
+    if (!content) throw new Error("No content in response")
 
-    const words = JSON.parse(content) as Record<number, string[]>
-
-    // Validate the structure
-    for (let i = 2; i <= 8; i++) {
-      if (!words[i] || !Array.isArray(words[i]) || words[i].length === 0) {
-        throw new Error(`Invalid word structure for length ${i}`)
-      }
-    }
-
-    return { words }
+    const parsed = JSON.parse(content)
+    return { words: parsed }
   } catch (error) {
     console.error("Error generating words from OpenAI:", error)
-    return { words: FALLBACK_WORDS }
+    // Return fallback words
+    return {
+      words: {
+        2: ["AI", "ML", "OS", "UI", "UX", "AR", "VR", "3D"],
+        3: ["API", "GPU", "CPU", "NLP", "CNN", "RNN", "SQL", "XML"],
+        4: ["CODE", "DATA", "BERT", "CLIP", "CUDA", "JSON", "HTML", "HTTP"],
+        5: ["MODEL", "AGENT", "LOGIC", "TRAIN", "PIXEL", "CLOUD", "ROBOT", "SMART"],
+        6: ["NEURAL", "PROMPT", "OPENAI", "CLAUDE", "PYTHON", "TENSOR", "VECTOR", "MATRIX"],
+        7: ["MACHINE", "NETWORK", "PATTERN", "COMPUTE", "DIGITAL", "QUANTUM", "ANDROID", "CHATBOT"],
+        8: ["LEARNING", "TRAINING", "COMPUTER", "ALGORITHM", "INTERNET", "SOFTWARE", "HARDWARE", "DATABASE"],
+      },
+    }
   }
 }
 
 export async function validateWord(word: string): Promise<boolean> {
-  if (!openaiClient) {
-    // Simple fallback validation - check if it's a reasonable English word
-    return word.length >= 2 && word.length <= 8 && /^[A-Z]+$/.test(word)
+  if (!openai) {
+    // Simple fallback validation
+    return /^[A-Z]+$/.test(word) && word.length >= 2 && word.length <= 8
   }
 
   try {
-    const completion = await openaiClient.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
           role: "system",
-          content:
-            "You are a word validator. Respond with only 'true' or 'false'. You should return 'true' for any valid English word that would be found in a standard dictionary.",
+          content: `You are a dictionary validator. Return only "true" or "false" to indicate if the given word is a valid English word that would be found in a standard dictionary. Accept common nouns, verbs, adjectives, proper nouns, and standard abbreviations.`,
         },
         {
           role: "user",
-          content: `Is "${word}" a valid English word? This includes common nouns, verbs, adjectives, proper nouns, abbreviations, and technical terms that would be found in a standard English dictionary. Respond with only 'true' or 'false'.`,
+          content: word,
         },
       ],
       temperature: 0,
-      max_tokens: 10,
     })
 
-    const response = completion.choices[0]?.message?.content?.toLowerCase().trim()
-    return response === "true"
+    const content = response.choices[0]?.message?.content?.trim().toLowerCase()
+    return content === "true"
   } catch (error) {
-    console.error("Error validating word with OpenAI:", error)
-    // Fallback to basic validation - accept any alphabetic word
-    return word.length >= 2 && word.length <= 8 && /^[A-Z]+$/.test(word)
+    console.error("Error validating word:", error)
+    // Fallback: allow any alphabetic word
+    return /^[A-Z]+$/.test(word) && word.length >= 2 && word.length <= 8
   }
 }
