@@ -69,18 +69,21 @@ export default function AIWordGuesser() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="text-center flex-1">
-              <h1 className="text-3xl font-bold text-gray-900">Amazing Word Guesser</h1>
-              <p className="text-gray-600 mt-1">
-                {themeNames[gameState.theme]} • {gameState.currentWord.length} letters
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={resetGame} className="ml-4 bg-transparent flex-shrink-0">
-              Change Theme
-            </Button>
+        <div className="max-w-2xl mx-auto px-4 py-4 relative">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">Amazing Word Guesser</h1>
+            <p className="text-gray-600 mt-1">
+              {themeNames[gameState.theme]} • {gameState.currentWord.length} letters
+            </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetGame}
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-transparent"
+          >
+            Change Theme
+          </Button>
           {isValidating && <p className="text-center text-blue-600 mt-1 text-sm">Validating word...</p>}
         </div>
       </header>
