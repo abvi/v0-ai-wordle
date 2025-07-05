@@ -1,7 +1,7 @@
-import type { LetterState } from "@/types/game"
+import type { GameState } from "@/types/game"
 
 interface GameBoardProps {
-  guesses: Array<{ word: string; results: LetterState[] }>
+  guesses: GameState["guesses"]
   currentGuess: string
   currentRow: number
   wordLength: number
@@ -11,56 +11,55 @@ interface GameBoardProps {
 export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSubmitting }: GameBoardProps) {
   const maxAttempts = 6
 
-  const getTileStyle = (state: LetterState | null, isAnimating: boolean, animationDelay: number) => {
-    const baseStyle = `
-      w-12 h-12 border-2 flex items-center justify-center text-xl font-bold
-      transition-all duration-300 ease-in-out
-    `
+  const getTileClass = (state: string, isAnimating: boolean, animationDelay: number) => {
+    const baseClass =
+      "w-12 h-12 border-2 flex items-center justify-center text-lg font-bold rounded transition-all duration-300"
 
     if (isAnimating) {
-      return `${baseStyle} border-gray-400 bg-white text-gray-800 animate-pulse`
+      return `${baseClass} border-gray-400 bg-white animate-pulse transform scale-105`
     }
 
     switch (state) {
       case "correct":
-        return `${baseStyle} border-green-500 bg-green-500 text-white transform`
+        return `${baseClass} bg-green-500 border-green-500 text-white`
       case "present":
-        return `${baseStyle} border-yellow-500 bg-yellow-500 text-white transform`
+        return `${baseClass} bg-yellow-500 border-yellow-500 text-white`
       case "absent":
-        return `${baseStyle} border-gray-500 bg-gray-500 text-white transform`
+        return `${baseClass} bg-gray-500 border-gray-500 text-white`
       default:
-        return `${baseStyle} border-gray-300 bg-white text-gray-800`
+        return `${baseClass} border-gray-300 bg-white text-gray-900`
     }
   }
 
   const renderRow = (rowIndex: number) => {
-    const guess = guesses[rowIndex]
     const isCurrentRow = rowIndex === currentRow
-    const isAnimatingRow = isSubmitting && isCurrentRow
+    const isSubmittingRow = isCurrentRow && isSubmitting
+    const guess = guesses[rowIndex]
 
     return (
       <div key={rowIndex} className="flex gap-2 justify-center">
         {Array.from({ length: wordLength }).map((_, colIndex) => {
           let letter = ""
-          let state: LetterState | null = null
+          let state = "empty"
 
           if (guess) {
+            // Completed guess
             letter = guess.word[colIndex] || ""
-            state = guess.results[colIndex] || null
+            state = guess.results[colIndex] || "empty"
           } else if (isCurrentRow) {
+            // Current guess being typed
             letter = currentGuess[colIndex] || ""
+            state = letter ? "filled" : "empty"
           }
 
-          const isAnimating = isAnimatingRow && colIndex < currentGuess.length
+          const isAnimating = isSubmittingRow && letter
           const animationDelay = colIndex * 150
 
           return (
             <div
               key={colIndex}
-              className={getTileStyle(state, isAnimating, animationDelay)}
-              style={{
-                animationDelay: isAnimating ? `${animationDelay}ms` : undefined,
-              }}
+              className={getTileClass(state, isAnimating, animationDelay)}
+              style={isAnimating ? { animationDelay: `${animationDelay}ms` } : {}}
             >
               {letter}
             </div>
@@ -71,8 +70,8 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto p-4">
-      <div className="space-y-2">{Array.from({ length: maxAttempts }).map((_, rowIndex) => renderRow(rowIndex))}</div>
+    <div className="flex flex-col gap-2 p-4">
+      {Array.from({ length: maxAttempts }).map((_, index) => renderRow(index))}
     </div>
   )
 }

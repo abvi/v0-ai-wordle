@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import type { GameState, LetterState, KeyboardState } from "@/types/game"
+import { useState, useCallback } from "react"
+import type { GameState, LetterState, KeyboardState, WordTheme } from "@/types/game"
 import { checkGuess, getRandomWord } from "@/utils/gameUtils"
 
 const INITIAL_KEYBOARD_STATE: KeyboardState = {}
@@ -14,37 +14,53 @@ export function useGame() {
     currentRow: 0,
     gameStatus: "playing",
     maxAttempts: 6,
+    theme: "ai",
   })
 
   const [keyboardState, setKeyboardState] = useState<KeyboardState>(INITIAL_KEYBOARD_STATE)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isValidating, setIsValidating] = useState(false)
-  const [isLoadingWords, setIsLoadingWords] = useState(true)
+  const [isLoadingWords, setIsLoadingWords] = useState(false)
   const [wordDatabase, setWordDatabase] = useState<Record<number, string[]>>({})
+  const [showThemeSelector, setShowThemeSelector] = useState(true)
 
-  // Load words from API on mount
-  useEffect(() => {
-    const loadWords = async () => {
-      try {
-        const response = await fetch("/api/words")
-        const data = await response.json()
+  // Load words from API when theme changes
+  const loadWordsForTheme = useCallback(async (theme: WordTheme) => {
+    setIsLoadingWords(true)
+    try {
+      const response = await fetch(`/api/words?theme=${theme}`)
+      const data = await response.json()
 
-        if (data.words) {
-          setWordDatabase(data.words)
-          const randomWord = getRandomWord(data.words)
-          setGameState((prev) => ({ ...prev, currentWord: randomWord }))
-        }
-      } catch (error) {
-        console.error("Failed to load words:", error)
-        // Fallback to a simple word if API fails
-        setGameState((prev) => ({ ...prev, currentWord: "MODEL" }))
-      } finally {
-        setIsLoadingWords(false)
+      if (data.words) {
+        setWordDatabase(data.words)
+        const randomWord = getRandomWord(data.words)
+        setGameState((prev) => ({
+          ...prev,
+          currentWord: randomWord,
+          theme: theme,
+          guesses: [],
+          currentGuess: "",
+          currentRow: 0,
+          gameStatus: "playing",
+        }))
       }
+    } catch (error) {
+      console.error("Failed to load words:", error)
+      // Fallback to a simple word if API fails
+      setGameState((prev) => ({ ...prev, currentWord: "MODEL" }))
+    } finally {
+      setIsLoadingWords(false)
     }
-
-    loadWords()
   }, [])
+
+  const selectTheme = useCallback(
+    (theme: WordTheme) => {
+      setShowThemeSelector(false)
+      setKeyboardState(INITIAL_KEYBOARD_STATE)
+      loadWordsForTheme(theme)
+    },
+    [loadWordsForTheme],
+  )
 
   const addLetter = useCallback(
     (letter: string) => {
@@ -165,15 +181,32 @@ export function useGame() {
   }, [gameState, isSubmitting, isValidating, updateKeyboardState])
 
   const resetGame = useCallback(() => {
-    const randomWord = getRandomWord(wordDatabase)
+    setShowThemeSelector(true)
     setGameState({
-      currentWord: randomWord,
+      currentWord: "",
       guesses: [],
       currentGuess: "",
       currentRow: 0,
       gameStatus: "playing",
       maxAttempts: 6,
+      theme: "ai",
     })
+    setKeyboardState(INITIAL_KEYBOARD_STATE)
+    setIsSubmitting(false)
+    setIsValidating(false)
+    setWordDatabase({})
+  }, [])
+
+  const playAgainSameTheme = useCallback(() => {
+    const randomWord = getRandomWord(wordDatabase)
+    setGameState((prev) => ({
+      ...prev,
+      currentWord: randomWord,
+      guesses: [],
+      currentGuess: "",
+      currentRow: 0,
+      gameStatus: "playing",
+    }))
     setKeyboardState(INITIAL_KEYBOARD_STATE)
     setIsSubmitting(false)
     setIsValidating(false)
@@ -186,6 +219,9 @@ export function useGame() {
     removeLetter,
     submitGuess,
     resetGame,
+    playAgainSameTheme,
+    selectTheme,
+    showThemeSelector,
     isSubmitting,
     isValidating,
     isLoadingWords,

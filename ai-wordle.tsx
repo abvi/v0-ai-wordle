@@ -4,7 +4,15 @@ import { useEffect } from "react"
 import { useGame } from "./hooks/useGame"
 import { GameBoard } from "./components/GameBoard"
 import { Keyboard } from "./components/Keyboard"
+import { ThemeSelector } from "./components/ThemeSelector"
 import { Button } from "@/components/ui/button"
+
+const themeNames = {
+  ai: "AI & Technology",
+  music: "Music",
+  sports: "Sports",
+  math: "Mathematics",
+}
 
 export default function AIWordGuesser() {
   const {
@@ -13,6 +21,9 @@ export default function AIWordGuesser() {
     removeLetter,
     submitGuess,
     resetGame,
+    playAgainSameTheme,
+    selectTheme,
+    showThemeSelector,
     isSubmitting,
     isValidating,
     isLoadingWords,
@@ -22,7 +33,7 @@ export default function AIWordGuesser() {
   // Handle physical keyboard input
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
+      if (showThemeSelector || gameState.gameStatus !== "playing" || isSubmitting || isValidating) return
 
       const key = event.key.toUpperCase()
 
@@ -37,14 +48,18 @@ export default function AIWordGuesser() {
 
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
-  }, [gameState.gameStatus, addLetter, removeLetter, submitGuess, isSubmitting, isValidating])
+  }, [showThemeSelector, gameState.gameStatus, addLetter, removeLetter, submitGuess, isSubmitting, isValidating])
+
+  if (showThemeSelector) {
+    return <ThemeSelector onSelectTheme={selectTheme} isLoading={isLoadingWords} />
+  }
 
   if (isLoadingWords) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading AI words...</p>
+          <p className="text-gray-600">Loading words...</p>
         </div>
       </div>
     )
@@ -55,10 +70,17 @@ export default function AIWordGuesser() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-3xl font-bold text-center text-gray-900">AI Word Guesser</h1>
-          <p className="text-center text-gray-600 mt-2">
-            Guess the AI-related word! ({gameState.currentWord.length} letters)
-          </p>
+          <div className="flex items-center justify-between">
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">AI Word Guesser</h1>
+              <p className="text-gray-600 mt-1">
+                {themeNames[gameState.theme]} • {gameState.currentWord.length} letters
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={resetGame} className="ml-4 bg-transparent">
+              Change Theme
+            </Button>
+          </div>
           {isValidating && <p className="text-center text-blue-600 mt-1 text-sm">Validating word...</p>}
         </div>
       </header>
@@ -91,9 +113,12 @@ export default function AIWordGuesser() {
                 </p>
               </div>
             )}
-            <Button onClick={resetGame} className="mt-4">
-              Play Again
-            </Button>
+            <div className="flex gap-2 justify-center mt-4">
+              <Button onClick={playAgainSameTheme}>Play Again ({themeNames[gameState.theme]})</Button>
+              <Button variant="outline" onClick={resetGame}>
+                Change Theme
+              </Button>
+            </div>
           </div>
         )}
 
