@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import type { GameState } from "@/types/game"
 
 interface GameBoardProps {
@@ -8,17 +10,19 @@ interface GameBoardProps {
   currentRow: number
   wordLength: number
   isSubmitting: boolean
+  targetWord: string
 }
 
-export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSubmitting }: GameBoardProps) {
+export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSubmitting, targetWord }: GameBoardProps) {
   const maxAttempts = 6
 
-  const getTileClass = (state: string, isFlipping: boolean, hasLetter: boolean) => {
+  const getTileClass = (state: string, isFlipping: boolean, hasLetter: boolean, delay = 0) => {
     const baseClass =
-      "w-12 h-12 border-2 flex items-center justify-center text-lg font-bold rounded transition-all duration-500"
+      "w-12 h-12 border-2 flex items-center justify-center text-lg font-bold rounded transition-all duration-200"
 
     if (isFlipping) {
-      return `${baseClass} animate-flip border-gray-400 bg-gray-200`
+      // During animation, we'll let CSS handle the color transition
+      return `${baseClass} animate-flip border-gray-400`
     }
 
     switch (state) {
@@ -46,6 +50,7 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
         {Array.from({ length: wordLength }).map((_, colIndex) => {
           let letter = ""
           let state = "empty"
+          let finalState = "empty"
 
           if (guess) {
             // Completed guess - show final state
@@ -59,6 +64,15 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
             // During submission animation - show the letters but with flipping animation
             letter = currentGuess[colIndex] || ""
             state = "flipping"
+            // We need to calculate what the final state will be for the animation
+            const targetWordLocal = targetWord
+            if (letter === targetWordLocal[colIndex]) {
+              finalState = "correct"
+            } else if (targetWordLocal.includes(letter)) {
+              finalState = "present"
+            } else {
+              finalState = "absent"
+            }
           }
 
           const isFlipping = isSubmittingRow && letter
@@ -69,12 +83,18 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
               key={colIndex}
               className={getTileClass(state, isFlipping, !!letter)}
               style={
-                isFlipping
-                  ? {
-                      animationDelay: `${animationDelay}ms`,
-                      animationFillMode: "forwards",
-                    }
-                  : {}
+                {
+                  ...(isFlipping
+                    ? {
+                        animationDelay: `${animationDelay}ms`,
+                        animationFillMode: "forwards",
+                        "--final-bg":
+                          finalState === "correct" ? "#22c55e" : finalState === "present" ? "#eab308" : "#6b7280",
+                        "--final-border":
+                          finalState === "correct" ? "#22c55e" : finalState === "present" ? "#eab308" : "#6b7280",
+                      }
+                    : {}),
+                } as React.CSSProperties
               }
             >
               {letter}
@@ -90,23 +110,35 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
       {Array.from({ length: maxAttempts }).map((_, index) => renderRow(index))}
 
       <style jsx>{`
-        @keyframes flip {
-          0% {
-            transform: rotateX(0);
-          }
-          50% {
-            transform: rotateX(90deg);
-            background-color: #e5e7eb;
-          }
-          100% {
-            transform: rotateX(0);
-          }
-        }
-        
-        .animate-flip {
-          animation: flip 0.6s ease-in-out;
-        }
-      `}</style>
+  @keyframes flip {
+    0% {
+      transform: rotateX(0);
+      background-color: white;
+      border-color: #9ca3af;
+    }
+    50% {
+      transform: rotateX(90deg);
+      background-color: white;
+      border-color: #9ca3af;
+    }
+    51% {
+      transform: rotateX(90deg);
+      background-color: var(--final-bg);
+      border-color: var(--final-border);
+      color: white;
+    }
+    100% {
+      transform: rotateX(0);
+      background-color: var(--final-bg);
+      border-color: var(--final-border);
+      color: white;
+    }
+  }
+  
+  .animate-flip {
+    animation: flip 0.6s ease-in-out;
+  }
+`}</style>
     </div>
   )
 }

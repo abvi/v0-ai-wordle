@@ -93,6 +93,7 @@ export default function AIWordGuesser() {
           currentRow={gameState.currentRow}
           wordLength={gameState.currentWord.length}
           isSubmitting={isSubmitting}
+          targetWord={gameState.currentWord}
         />
 
         {/* Game Status */}
