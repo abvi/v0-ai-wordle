@@ -1,4 +1,4 @@
-# Ai wordle game plan
+# Amazing Word Guesser
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
@@ -6,6 +6,8 @@
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/0OTYPkBXfpU)
 
 ## Overview
+
+Amazing Word Guesser is a themed word guessing game where players can choose from different categories like AI & Technology, Music, Sports, and Mathematics. Each theme generates words dynamically using AI, with fallback word lists for reliability.
 
 This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
 Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
