@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server"
-import { generateThemeWords, type WordTheme } from "@/lib/openai-server"
+import { type NextRequest, NextResponse } from "next/server"
+import { generateAIWords } from "@/lib/openai-server"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const theme = (searchParams.get("theme") as WordTheme) || "ai"
+    const theme = searchParams.get("theme") || "ai"
 
-    const words = await generateThemeWords(theme)
+    const words = await generateAIWords(theme)
+
     return NextResponse.json({ words })
   } catch (error) {
     console.error("Error in /api/words:", error)

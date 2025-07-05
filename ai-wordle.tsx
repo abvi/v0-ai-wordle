@@ -72,7 +72,7 @@ export default function AIWordGuesser() {
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="text-center flex-1">
-              <h1 className="text-3xl font-bold text-gray-900">AI Word Guesser</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Amazing Word Guesser</h1>
               <p className="text-gray-600 mt-1">
                 {themeNames[gameState.theme]} • {gameState.currentWord.length} letters
               </p>

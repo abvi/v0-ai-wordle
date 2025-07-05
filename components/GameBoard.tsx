@@ -1,3 +1,5 @@
+"use client"
+
 import type { GameState } from "@/types/game"
 
 interface GameBoardProps {
@@ -11,12 +13,12 @@ interface GameBoardProps {
 export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSubmitting }: GameBoardProps) {
   const maxAttempts = 6
 
-  const getTileClass = (state: string, isAnimating: boolean, animationDelay: number) => {
+  const getTileClass = (state: string, isFlipping: boolean, hasLetter: boolean) => {
     const baseClass =
-      "w-12 h-12 border-2 flex items-center justify-center text-lg font-bold rounded transition-all duration-300"
+      "w-12 h-12 border-2 flex items-center justify-center text-lg font-bold rounded transition-all duration-500"
 
-    if (isAnimating) {
-      return `${baseClass} border-gray-400 bg-white animate-pulse transform scale-105`
+    if (isFlipping) {
+      return `${baseClass} animate-flip border-gray-400 bg-gray-200`
     }
 
     switch (state) {
@@ -27,6 +29,9 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
       case "absent":
         return `${baseClass} bg-gray-500 border-gray-500 text-white`
       default:
+        if (hasLetter) {
+          return `${baseClass} border-gray-400 bg-white text-gray-900 border-2`
+        }
         return `${baseClass} border-gray-300 bg-white text-gray-900`
     }
   }
@@ -43,23 +48,34 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
           let state = "empty"
 
           if (guess) {
-            // Completed guess
+            // Completed guess - show final state
             letter = guess.word[colIndex] || ""
             state = guess.results[colIndex] || "empty"
-          } else if (isCurrentRow) {
-            // Current guess being typed
+          } else if (isCurrentRow && !isSubmitting) {
+            // Current guess being typed - show letters as user types
             letter = currentGuess[colIndex] || ""
             state = letter ? "filled" : "empty"
+          } else if (isSubmittingRow) {
+            // During submission animation - show the letters but with flipping animation
+            letter = currentGuess[colIndex] || ""
+            state = "flipping"
           }
 
-          const isAnimating = isSubmittingRow && letter
+          const isFlipping = isSubmittingRow && letter
           const animationDelay = colIndex * 150
 
           return (
             <div
               key={colIndex}
-              className={getTileClass(state, isAnimating, animationDelay)}
-              style={isAnimating ? { animationDelay: `${animationDelay}ms` } : {}}
+              className={getTileClass(state, isFlipping, !!letter)}
+              style={
+                isFlipping
+                  ? {
+                      animationDelay: `${animationDelay}ms`,
+                      animationFillMode: "forwards",
+                    }
+                  : {}
+              }
             >
               {letter}
             </div>
@@ -72,6 +88,25 @@ export function GameBoard({ guesses, currentGuess, currentRow, wordLength, isSub
   return (
     <div className="flex flex-col gap-2 p-4">
       {Array.from({ length: maxAttempts }).map((_, index) => renderRow(index))}
+
+      <style jsx>{`
+        @keyframes flip {
+          0% {
+            transform: rotateX(0);
+          }
+          50% {
+            transform: rotateX(90deg);
+            background-color: #e5e7eb;
+          }
+          100% {
+            transform: rotateX(0);
+          }
+        }
+        
+        .animate-flip {
+          animation: flip 0.6s ease-in-out;
+        }
+      `}</style>
     </div>
   )
 }

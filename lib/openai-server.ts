@@ -1,356 +1,132 @@
-import OpenAI from "openai"
 import "server-only"
+import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
-  : null
+export async function generateAIWords(theme = "ai"): Promise<Record<number, string[]>> {
+  const apiKey = process.env.OPENAI_API_KEY
 
-export type WordTheme = "ai" | "music" | "sports" | "math"
-
-export async function generateThemeWords(theme: WordTheme): Promise<Record<number, string[]>> {
-  if (!openai) {
-    console.log("OpenAI API key not found, using fallback words")
+  if (!apiKey) {
+    console.warn("OPENAI_API_KEY not found, using fallback words")
     return getFallbackWords(theme)
   }
 
   try {
     const themePrompts = {
-      ai: `AI, technology, and computer science related words including:
-- AI/ML terms (GPU, CPU, LLM, NLP, CNN, RNN, etc.)
-- Programming languages (JAVA, RUST, etc.)
-- Tech companies (APPLE, GOOGLE, META, etc.)
-- Computer science concepts (CODE, DATA, HASH, etc.)
-- Modern tech terms (API, SDK, etc.)`,
-
-      music: `Music and audio related words including:
-- Musical instruments (PIANO, GUITAR, DRUMS, etc.)
-- Music genres (ROCK, JAZZ, BLUES, POP, etc.)
-- Musical terms (TEMPO, CHORD, SCALE, etc.)
-- Famous musicians and bands (BACH, ELVIS, etc.)
-- Audio equipment (MIXER, SPEAKER, etc.)`,
-
-      sports: `Sports and athletics related words including:
-- Sports names (SOCCER, TENNIS, GOLF, etc.)
-- Equipment (BALL, BAT, GLOVE, etc.)
-- Actions (KICK, THROW, CATCH, etc.)
-- Positions (COACH, PLAYER, etc.)
-- Terms (GOAL, SCORE, TEAM, etc.)`,
-
-      math: `Mathematics and numbers related words including:
-- Mathematical operations (ADD, MINUS, etc.)
-- Geometric shapes (CIRCLE, SQUARE, etc.)
-- Mathematical terms (ANGLE, RATIO, etc.)
-- Numbers written out (ONE, TWO, THREE, etc.)
-- Math concepts (LOGIC, PROOF, etc.)`,
+      ai: "AI, machine learning, programming, technology, and computer science",
+      music: "music, instruments, genres, musical terms, and artists",
+      sports: "sports, games, equipment, athletic terms, and competitions",
+      math: "mathematics, numbers, shapes, operations, and mathematical concepts",
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are a word generator for a themed word guessing game. Generate a comprehensive list of words organized by length (3-6 letters only).
+    const themeDescription = themePrompts[theme as keyof typeof themePrompts] || themePrompts.ai
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "3": ["WORD1", "WORD2", "WORD3"],
-  "4": ["WORD1", "WORD2", "WORD3"],
-  "5": ["WORD1", "WORD2", "WORD3"],
-  "6": ["WORD1", "WORD2", "WORD3"]
-}
-
-Provide at least 15 words per length category. All words must be uppercase and contain only letters A-Z.`,
-        },
-        {
-          role: "user",
-          content: `Generate ${themePrompts[theme]}`,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
+    const { text } = await generateText({
+      model: openai("gpt-4"),
+      prompt: `Generate a comprehensive list of words related to ${themeDescription}. 
+      
+      Organize them by length (3-6 letters only). Return exactly 25 words for each length.
+      
+      Format as JSON:
+      {
+        "3": ["API", "GPU", "CPU", ...],
+        "4": ["CODE", "DATA", "BERT", ...],
+        "5": ["MODEL", "AGENT", "LOGIC", ...],
+        "6": ["NEURAL", "PROMPT", "OPENAI", ...]
+      }
+      
+      Requirements:
+      - All words must be exactly 3-6 letters
+      - All words must be uppercase
+      - All words must be real English words
+      - All words must be clearly related to ${themeDescription}
+      - Return exactly 25 words per length category
+      - Return only valid JSON, no other text`,
     })
 
-    const content = completion.choices[0]?.message?.content
-    if (!content) {
-      throw new Error("No content received from OpenAI")
+    const parsed = JSON.parse(text.trim())
+
+    // Validate the response
+    if (typeof parsed === "object" && parsed !== null) {
+      const validatedWords: Record<number, string[]> = {}
+
+      for (const length of [3, 4, 5, 6]) {
+        if (Array.isArray(parsed[length.toString()])) {
+          validatedWords[length] = parsed[length.toString()]
+            .filter((word: any) => typeof word === "string" && word.length === length)
+            .slice(0, 25) // Ensure max 25 words
+        }
+      }
+
+      // If we got valid words, return them
+      if (Object.keys(validatedWords).length > 0) {
+        return validatedWords
+      }
     }
 
-    const words = JSON.parse(content)
-    console.log(`Successfully generated ${theme} words from OpenAI`)
-    return words
+    throw new Error("Invalid response format from OpenAI")
   } catch (error) {
-    console.error(`Error generating ${theme} words from OpenAI:`, error)
+    console.error("Error generating words from OpenAI:", error)
     return getFallbackWords(theme)
   }
 }
 
 export async function validateWord(word: string): Promise<boolean> {
-  if (!openai) {
-    console.log("OpenAI API key not found, using basic validation")
+  const apiKey = process.env.OPENAI_API_KEY
+
+  if (!apiKey) {
+    console.warn("OPENAI_API_KEY not found, using basic validation")
     return word.length >= 3 && word.length <= 6 && /^[A-Z]+$/.test(word)
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: `You are a word validator for a word guessing game. Determine if the given word is a valid English word that would be found in a standard dictionary.
-
-Accept:
-- Common English words (nouns, verbs, adjectives, adverbs)
-- Proper nouns (names, places, brands)
-- Common abbreviations and acronyms
-- Technical terms and jargon
-- Slang words that are widely recognized
-
-Reject:
-- Random letter combinations
-- Obvious typos or misspellings
-- Words with numbers or special characters
-
-Respond with only "true" or "false".`,
-        },
-        {
-          role: "user",
-          content: word,
-        },
-      ],
-      temperature: 0,
-      max_tokens: 10,
+    const { text } = await generateText({
+      model: openai("gpt-4"),
+      prompt: `Is "${word}" a valid English word that would be found in a standard dictionary? 
+      
+      Consider:
+      - Common nouns, verbs, adjectives, adverbs
+      - Proper nouns (names, places, brands)
+      - Abbreviations and acronyms in common use
+      - Technical terms
+      
+      Respond with only "true" or "false".`,
     })
 
-    const response = completion.choices[0]?.message?.content?.trim().toLowerCase()
-    return response === "true"
+    return text.trim().toLowerCase() === "true"
   } catch (error) {
-    console.error("Error validating word with OpenAI:", error)
-    // Fallback: accept any alphabetic word of reasonable length
+    console.error("Error validating word:", error)
+    // Fallback: basic validation
     return word.length >= 3 && word.length <= 6 && /^[A-Z]+$/.test(word)
   }
 }
 
-function getFallbackWords(theme: WordTheme): Record<number, string[]> {
+function getFallbackWords(theme: string): Record<number, string[]> {
   const fallbackWords = {
     ai: {
-      3: ["API", "GPU", "CPU", "NLP", "CNN", "RNN", "SQL", "XML", "CSS", "PHP", "AWS", "IBM", "AMD", "IOT", "VPN"],
-      4: [
-        "CODE",
-        "DATA",
-        "HASH",
-        "JSON",
-        "HTML",
-        "HTTP",
-        "JAVA",
-        "RUST",
-        "TECH",
-        "CHIP",
-        "DISK",
-        "BOOT",
-        "WIFI",
-        "BYTE",
-        "LOOP",
-      ],
-      5: [
-        "MODEL",
-        "AGENT",
-        "LOGIC",
-        "TRAIN",
-        "CLOUD",
-        "CYBER",
-        "ROBOT",
-        "SMART",
-        "PIXEL",
-        "CACHE",
-        "DEBUG",
-        "LINUX",
-        "MYSQL",
-        "REACT",
-        "SWIFT",
-      ],
-      6: [
-        "NEURAL",
-        "PYTHON",
-        "GITHUB",
-        "DOCKER",
-        "LAMBDA",
-        "TENSOR",
-        "VECTOR",
-        "MATRIX",
-        "BINARY",
-        "KERNEL",
-        "SERVER",
-        "MOBILE",
-        "CODING",
-        "SYNTAX",
-        "MEMORY",
-      ],
+      3: ["API", "GPU", "CPU", "BOT", "APP", "WEB", "NET", "BIT", "RAM", "USB"],
+      4: ["CODE", "DATA", "TECH", "CHIP", "BYTE", "WIFI", "HTML", "JSON", "RUST", "JAVA"],
+      5: ["MODEL", "AGENT", "LOGIC", "ROBOT", "CLOUD", "PIXEL", "LINUX", "MYSQL", "REACT", "SWIFT"],
+      6: ["NEURAL", "PYTHON", "GITHUB", "DOCKER", "TENSOR", "MATRIX", "VECTOR", "BINARY", "SYNTAX", "MEMORY"],
     },
     music: {
-      3: ["RAP", "POP", "DUB", "JAM", "HIT", "KEY", "BAR", "BOW", "MIC", "AMP", "GIG", "SET", "TAB", "CUE", "MIX"],
-      4: [
-        "ROCK",
-        "JAZZ",
-        "FOLK",
-        "SOUL",
-        "BEAT",
-        "TUNE",
-        "SONG",
-        "BAND",
-        "DRUM",
-        "BASS",
-        "FLUE",
-        "HARP",
-        "LUTE",
-        "REED",
-        "TONE",
-      ],
-      5: [
-        "PIANO",
-        "GUITAR",
-        "DRUMS",
-        "FLUTE",
-        "ORGAN",
-        "TEMPO",
-        "CHORD",
-        "SCALE",
-        "MUSIC",
-        "SOUND",
-        "VOICE",
-        "DANCE",
-        "OPERA",
-        "BLUES",
-        "METAL",
-      ],
-      6: [
-        "VIOLIN",
-        "SINGER",
-        "MELODY",
-        "RHYTHM",
-        "STUDIO",
-        "RECORD",
-        "ARTIST",
-        "CONCERT",
-        "LYRICS",
-        "HARMONY",
-        "BALLAD",
-        "CHORUS",
-        "BRIDGE",
-        "SAMPLE",
-        "REVERB",
-      ],
+      3: ["RAP", "POP", "DUB", "JAM", "HIT", "MIX", "KEY", "BAR", "BOW", "SAX"],
+      4: ["BEAT", "SONG", "TUNE", "BASS", "DRUM", "ROCK", "JAZZ", "FOLK", "HYMN", "ARIA"],
+      5: ["PIANO", "VOCAL", "CHORD", "SCALE", "TEMPO", "GENRE", "ALBUM", "TRACK", "SOUND", "MUSIC"],
+      6: ["GUITAR", "VIOLIN", "MELODY", "RHYTHM", "SINGER", "ARTIST", "STUDIO", "RECORD", "CONCERT", "HARMONY"],
     },
     sports: {
-      3: ["RUN", "HIT", "WIN", "CUP", "BAT", "NET", "GYM", "BOX", "SKI", "ROW", "JOG", "LAP", "SET", "ACE", "TIE"],
-      4: [
-        "BALL",
-        "GAME",
-        "TEAM",
-        "GOAL",
-        "RACE",
-        "SWIM",
-        "JUMP",
-        "KICK",
-        "PASS",
-        "SHOT",
-        "PLAY",
-        "GOLF",
-        "SURF",
-        "DIVE",
-        "LIFT",
-      ],
-      5: [
-        "SPORT",
-        "MATCH",
-        "SCORE",
-        "FIELD",
-        "COURT",
-        "TRACK",
-        "COACH",
-        "TRAIN",
-        "MEDAL",
-        "PRIZE",
-        "RUGBY",
-        "BOXER",
-        "RIDER",
-        "SKATE",
-        "THROW",
-      ],
-      6: [
-        "SOCCER",
-        "TENNIS",
-        "HOCKEY",
-        "PLAYER",
-        "WINNER",
-        "RUNNER",
-        "LEAGUE",
-        "SEASON",
-        "TROPHY",
-        "ATHLETE",
-        "BOXING",
-        "RACING",
-        "SKIING",
-        "DIVING",
-        "CYCLING",
-      ],
+      3: ["RUN", "WIN", "GYM", "BOX", "SKI", "ROW", "HIT", "NET", "BAT", "CUP"],
+      4: ["GAME", "TEAM", "BALL", "GOAL", "RACE", "SWIM", "JUMP", "KICK", "PLAY", "GOLF"],
+      5: ["SPORT", "MATCH", "FIELD", "COURT", "TRACK", "SCORE", "COACH", "MEDAL", "ARENA", "LEAGUE"],
+      6: ["SOCCER", "TENNIS", "HOCKEY", "BOXING", "RUNNER", "PLAYER", "WINNER", "TROPHY", "STADIUM", "ATHLETE"],
     },
     math: {
-      3: ["ADD", "SUM", "SET", "ONE", "TWO", "SIX", "TEN", "ODD", "ARC", "LOG", "SIN", "COS", "TAN", "MAX", "MIN"],
-      4: [
-        "MATH",
-        "PLUS",
-        "ZERO",
-        "FOUR",
-        "FIVE",
-        "NINE",
-        "CUBE",
-        "ROOT",
-        "AREA",
-        "LINE",
-        "AXIS",
-        "MEAN",
-        "MODE",
-        "SINE",
-        "CONE",
-      ],
-      5: [
-        "THREE",
-        "SEVEN",
-        "EIGHT",
-        "ANGLE",
-        "RATIO",
-        "GRAPH",
-        "CURVE",
-        "POINT",
-        "SLOPE",
-        "PROOF",
-        "LOGIC",
-        "PRIME",
-        "EQUAL",
-        "ROUND",
-        "SOLVE",
-      ],
-      6: [
-        "NUMBER",
-        "CIRCLE",
-        "SQUARE",
-        "VOLUME",
-        "RADIUS",
-        "DEGREE",
-        "FACTOR",
-        "MATRIX",
-        "VECTOR",
-        "FORMULA",
-        "THEORY",
-        "METHOD",
-        "RESULT",
-        "ANSWER",
-        "SYMBOL",
-      ],
+      3: ["SUM", "ADD", "SET", "ARC", "LOG", "SIN", "COS", "TAN", "MAX", "MIN"],
+      4: ["MATH", "PLUS", "ZERO", "CUBE", "AREA", "AXIS", "MEAN", "MODE", "ROOT", "UNIT"],
+      5: ["ANGLE", "GRAPH", "PRIME", "RATIO", "SLOPE", "CURVE", "POINT", "PROOF", "LOGIC", "EQUAL"],
+      6: ["NUMBER", "CIRCLE", "SQUARE", "VECTOR", "MATRIX", "RADIUS", "VOLUME", "FORMULA", "THEORY", "CALCULUS"],
     },
   }
 
-  return fallbackWords[theme]
+  return fallbackWords[theme as keyof typeof fallbackWords] || fallbackWords.ai
 }
