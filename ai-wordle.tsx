@@ -77,7 +77,7 @@ export default function AIWordGuesser() {
                 {themeNames[gameState.theme]} • {gameState.currentWord.length} letters
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={resetGame} className="ml-4 bg-transparent">
+            <Button variant="outline" size="sm" onClick={resetGame} className="ml-4 bg-transparent flex-shrink-0">
               Change Theme
             </Button>
           </div>
